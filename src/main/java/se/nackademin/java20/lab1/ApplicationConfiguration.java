@@ -28,6 +28,8 @@ import javax.persistence.EntityManager;
 
 @Configuration
 public class ApplicationConfiguration {
+    @Value("${server.ssl.enabled}")
+    private boolean enabled;
     @Value("${server.ssl.trust-store-password}")
     private String trustStorePassword;
     @Value("${server.ssl.trust-store}")
@@ -65,7 +67,12 @@ public class ApplicationConfiguration {
 
     @Bean
     public RestTemplate restTemplate() throws Exception {
-        RestTemplate restTemplate = new RestTemplate(clientHttpRequestFactory());
+        final RestTemplate restTemplate;
+        if (enabled) {
+            restTemplate = new RestTemplate(clientHttpRequestFactory());
+        } else {
+            restTemplate = new RestTemplate();
+        }
         restTemplate.setErrorHandler(
                 new DefaultResponseErrorHandler() {
                     @Override

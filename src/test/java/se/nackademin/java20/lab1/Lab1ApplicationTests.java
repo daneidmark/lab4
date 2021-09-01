@@ -56,26 +56,7 @@ class Lab1ApplicationTests {
 
     @Test
     void shouldOpenAccountWhenRiskAssessmentPasses() throws Exception {
-        wireMockServer.stubFor(get(urlEqualTo("/risk/dan")).willReturn(aResponse()
-                .withStatus(HttpStatus.OK.value())
-                .withHeader("content-type", APPLICATION_JSON.toString())
-                .withBody("{\"pass\": true}")));
-
-        final MvcResult mvcResult = mockMvc.perform(MockMvcRequestBuilders.get("/bank/dan/account"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrlPattern("/bank/dan/account/{[0-9]*}"))
-                .andReturn();
-
-        final String redirectedUrl = mvcResult.getResponse().getRedirectedUrl();
-        final String[] split = redirectedUrl.split("/");
-        long accountId = Long.parseLong(split[split.length - 1]);
-
-        mockMvc.perform(MockMvcRequestBuilders.get(redirectedUrl))
-                .andExpect(status().isOk())
-                .andExpect(model().attribute("balance", 0L))
-                .andExpect(model().attribute("userId", "dan"))
-                .andExpect(model().attribute("accountId", accountId));
-
+        //TODO
     }
 
 

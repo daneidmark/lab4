@@ -40,161 +40,93 @@ I denna tutorial finns alla byggstenar som ni kan tänka er behöva! Börja med 
 
 https://www.toptal.com/spring/spring-security-tutorial
 
-#### Steg 1: Login flödet
-I denna lab ska vi skapa vår front-end som en single page applikation. Dvs vi ska inte låta spring boot rendera vyn utan låta klienten göra detta.
+#### Steg 1: Prata REST med backend
+För att visa användningen av tokens är det att föredra att vi använder REST för att prata med vår backend istället för att gå all out thymeleaf.
 
-I katalogen `resources/public` kommer spring boot automatiskt leta efter en index.html och om den finns där kommer den att servas under root. eg localhost:8080/
+Har du skapat en egen lösning som detta är det bara att fortsätta. Om inte, skapa en egen eller så kan du sno allt i resources/public i detta repo för att få en frontend.
 
-Ni får använda vilket frontend-ramverk ni vill, men alla exempel kommer vara ganska basic med plain html och javascript och lite jQuery.
+Det färdiga GUIT förväntar sig följande endpoints 
 
-Det visar sig att det även har funnits ett annat team som har skapat en frontend åt er om ni inte vill skapa en egen (vilket kan vara ganska tidskrävande). Den är inte vacker men den fungerar hyffsat.
+1. /admin/open
+2. /account/deposit
+3. /account/withdraw
 
-Det viktiga om ni väljer att använda den existerande frontenden är att ni läser koden och förstår vad den gör.
+Kolla gärna runt i detta repo för att lista ut hur DTOer och sådant ser ut.
 
-Hur hanteras tokens?
-Hur används roller för att välja vyer?
+#### Steg 1.b Migrera användarhanteringen till user-service
+Numera tas användarna hand om i user-service. Dvs migrera till att använda dess endpoints för att skapa användare.
 
-Navigera till swaggerUI för userService och inspektera dess endpoints och testa att skapa en användare och logga in med den skapade användare.
-När du loggar in får du en token tillbaka. Den är base64-enkodad. Decoda den och inspektera innehållet.
+Kolla swagger för att se hur APIt ser ut. 
 
-UserService är konfigurerad att signiera alla JWT-tokens med en nyckel. 
-Skapa en klass JWTParser som tar emot en token, validerar den och skickar tillbaka en User.
-
-```
-public class JWTParser {
-
-    private static final byte[] SIGNING_KEY = "s2meBcgRWnODgza34+abFcStUXx49Ozju+Pd532YT1mfDMS8/Twv6wnjhLHdUJBkwbRoWP+N0vlBw4hSmY2HZ/WJYNRyOzD5f0wr3J3gyZC5fiWgs5lEJcygzTEvTufmRWPB10A8Est3o6co0lxom0ALe4q/mAU3046lm4T0QXDlazelWHVRbaYg07cHQGiIBGNJzEdi8CvzlsU3ArNiYgPw2fIREMVDM5axmg==".getBytes();
-
-    private SignatureAlgorithm signatureAlgorithm = SignatureAlgorithm.HS512;
-
-    private byte[] apiKeySecretBytes = Base64.encodeBase64(SIGNING_KEY);
-    private Key key = new SecretKeySpec(apiKeySecretBytes, signatureAlgorithm.getJcaName());
-
-
-    public User validate(String token) {
-       Claims claims = Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody();
-
-        String authorities = (String)claims.get("authorities");
-        List<Role> roles = Arrays.stream(authorities.split(",")).map(r -> r.substring(5)).map(Role::valueOf).collect(Collectors.toList());
-        return new User(claims.getSubject(),  roles);
-    }
-}
-``` 
-
-UserService har en motsvarighet där den använder samma SIGNING_KEY för att singa requestet.
-
-Du kan nu skapa ett test och annotera det med `@Disabled` där du kan testa att ropa på validate, med tokens skapade från swagger för att se att allt leker.
-
-#### Steg 2: Enable spring security i den app!
+#### Steg 2: Enable spring security i din app!
 
 Efter slutfört moment ska du ha 
 1. alla html-sidor ska vara publikt accessbara.
 2. alla Rest-anrop ska kräva authentisering.
 
-#### Steg 3: Skapa ett AuthorizationFilter
+Skapa en SpringSecurityConfiguration och se till att du låser ned din app. Därefter öppnar du upp dina publika sidor.
+Tex. borde det gå att komma åt login sidan utan att vara inloggad. Om du hostar din front-end separat kan det vara så att
+allt bara funkar ändå då /login default är öppen och du har inga andra resurser som behöver öppnas.
+
+#### Steg 3: Logga in din användare
+Från GUIt eller från din app, ropa på user-service /login, där får du en token tillbaka som du kan spara och använda 
+i alla requests till din app. Tokenen innehåller allt som behövs för att styrka att du är du och har dina
+roller så att din app kan fokusera på authorization.
+
+
+#### Steg 4 : Skapa ett AuthorizationFilter
 Efter detta steg kan du i dina rest endpoints skriva `public ResponseEntity<AccountDto> getAccount(@AuthenticationPrincipal User activeUser)` för att läsa ut information om den inloggade användaren.
 
 Vi kommer att skapa ett AuthorizationFilter som kommer authenticate din användare. 
 
-```
-public class JWTAuthorizationFilter extends BasicAuthenticationFilter {
+Här kan du kolla i user-service hur dessa kan se ut och där finns det även lite hjälp om man vill
+ta inspiration om hur man parsar och validerar JWT-tokens.
 
-    private final JWTParser jwtIssuer;
-
-    public JWTAuthorizationFilter(AuthenticationManager authManager, JWTParser jwtIssuer) {
-        super(authManager);
-        this.jwtIssuer = jwtIssuer;
-    }
-
-    @Override
-    protected void doFilterInternal(HttpServletRequest req,
-                                    HttpServletResponse res,
-                                    FilterChain chain) throws IOException, ServletException {
-        String header = req.getHeader("Authorization");
-
-        if (header == null || !header.startsWith("Bearer")) {
-            chain.doFilter(req, res);
-            return;
-        }
-
-        UsernamePasswordAuthenticationToken authentication = getAuthentication(req);
-
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        chain.doFilter(req, res);
-    }
-
-    // Reads the JWT from the Authorization header, and then uses JWT to validate the token
-    private UsernamePasswordAuthenticationToken getAuthentication(HttpServletRequest request) {
-        String token = request.getHeader("Authorization");
-
-        if (token != null) {
-            // parse the token.
-            User user = jwtIssuer.validate(token.substring(7));
-
-            if (user != null) {
-                // new arraylist means authorities
-                return new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
-            }
-
-            return null;
-        }
-
-        return null;
-    }
-}
-```
-
-Därefter om vi lägger till vårat filter så kommer vi på varje authenticated request försöka lösa en token, validera den samt översätta den till en användare. Här kan ni även se hur roller kan användas för att restricta endpoint till bara en viss typ av användare.
-
-```
-@Configuration
-class SecurityConfiguration extends WebSecurityConfigurerAdapter {
-
-    private final JWTParser jwtParser;
-
-    @Autowired
-    SecurityConfiguration(JWTParser jwtParser) {
-        this.jwtParser = jwtParser;
-    }
-
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
-        final JWTAuthorizationFilter filter = new JWTAuthorizationFilter(authenticationManager(), jwtParser);
-
-        http
-                .csrf()
-                .disable()
-                .cors()
-                .disable()
-                .authorizeRequests()
-                .antMatchers("/").permitAll()
-                .antMatchers("/partial/*").permitAll()
-                .antMatchers("/admin/*").hasRole("ADMIN")
-                .anyRequest().authenticated().and()
-                .addFilter(filter)
-                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
-    }
-}
-``` 
-
-##### Implementera endpoints
-1. /admin/open
-Enbart admins ska kunna öppna konton. Förutom att öppna ett konto behöver vi enrolla en användare i userService. e.g anropa dess signup endpoint.
-2. /account/deposit
-3. /account/withdraw
+Kolla på JWTAuthorizationFilter och JWTIssuer.
 
 
-## Del2: TLS (om du får tid över)
+## Del 3: TLS (om du får tid över)
 Vi vill gärna slå på HTTPS i vår app. Och då behöver vi skapa certifikat. Vi kommer skapa self-signed certificates i denna lab. Men i verkligheten använder vi saker som Lets encrypt för att skapa dem.
 Det finns en ny version av Risktjänsten daneidmark/risk:0.0.2 i den har teamet implementerat mTLS. Dvs för att du ska kunna ropa på dess endpoint måste di tillhandahålla ett certifikat och ett lösenord.
 
-### Skapa cerifikat
+Om du vill testa detta måster du.
+   
+1. Skapa certifikat. Här finns det ett exempel på hur du gör det. Googla gärna och läs på innan du copy-pastar.
+```
+#!/bin/bash
 
-### TLS med self-signed certificates
+keytool -genkeypair -alias client-app -keyalg RSA -keysize 2048 -storetype JKS -keystore client-app.jks -validity 3650 -ext SAN=dns:localhost,ip:127.0.0.1
+keytool -genkeypair -alias server-app -keyalg RSA -keysize 2048 -storetype JKS -keystore server-app.jks -validity 3650 -ext SAN=dns:localhost,ip:127.0.0.1
 
-Slå på HTTPS i din app
+keytool -export -alias client-app -file client-app.crt -keystore client-app.jks
 
+keytool -export -alias server-app -file server-app.crt -keystore server-app.jks
 
-### mTLS med self-signed certificate
+keytool -import -alias server-app -file server-app.crt -keystore client-app.jks
+keytool -import -alias client-app -file client-app.crt -keystore server-app.jks
+```
+
+3. Mounta dessa certifikat i din docker container. Här kan man hitta inspiration om hur jag gjorde.
+```
+riskService:
+    image: daneidmark/risk:0.0.2
+    environment:
+      - SERVER_SSL_KEY-STORE=file:/certs/server-app.jks
+      - SERVER_SSL_TRUST-STORE=file:/certs/server-app.jks
+    ports:
+      - "8081:8081"
+    volumes:
+      - "/Users/dan/git/github/lab3-risk-service/src/main/resources:/certs"
+  userService:
+    image: daneidmark/user:0.0.1
+    ports:
+      - "8082:8082"
+```
+
+4. Konfigurera en SSL-kontext och preppa din RestTemplate att göra ett HTTPS andop. Dvs risk servicen lyssnar inte längre på http.
+Det går att snegla lite i ApplicationConfiguration om man är sugen på att hitta lite inspriation.
+
+5. Testa att slå på HTTPS för din app
+   server.ssl.enabled: true
 
 
