@@ -1,0 +1,43 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>My bank</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+</head>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js">
+</script>
+<body>
+
+<div id="app"></div>
+
+<script>
+    let token = "";
+    const authServiceBaseUrl = 'http://localhost:8082' // FULHACK!
+    load_login = () =>  {
+     fetch('partial/login.html')
+        .then((response) => { return response.text(); })
+        .then((result) => {
+                $('#app').html(result);
+        });
+    }
+
+     load_account = () =>  {
+     fetch('partial/account.html')
+        .then((response) => { return response.text(); })
+        .then((result) => {
+                $('#app').html(result);
+        });
+    }
+
+     load_admin = () =>  {
+     fetch('partial/admin.html')
+        .then((response) => { return response.text(); })
+        .then((result) => {
+                $('#app').html(result);
+        });
+    }
+
+    load_login();
+</script>
+</body>
+</html>

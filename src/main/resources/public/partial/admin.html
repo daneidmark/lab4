@@ -1,0 +1,29 @@
+
+
+<div>
+
+    <p>username: <input id="new_username" type="text"/></p>
+    <p>password: <input id="new_password" type="text"/></p>
+
+    <button class="btn" onclick="openAccount()">Open Account</button>
+    <script>
+
+        const openAccount = () => {
+         const user = $("#new_username").val()
+         const password = $("#new_password").val()
+         console.log(user);
+         console.log(password);
+         const body = `{"username": "${user}", "password": "${password}"}`;
+         console.log(body)
+         const response = fetch('/admin/open', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: body
+          }).then(l => console.log("hello"))
+        load_login();
+        }
+    </script>
+</div>

@@ -1,0 +1,36 @@
+version: "3.9"
+services:
+  mysql:
+    image: mysql:8.0.26
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_DATABASE=lab1
+    ports:
+      - "3306:3306"
+  lab2:
+    image: daneidmark/bank:0.0.2
+    environment:
+      - MYSQL_HOST=mysql
+      - RISK_URL=https://riskService:8081
+      - USER_URL=http://userService:8082
+      - SERVER_SSL_KEY-STORE=file:/certs/client-app.jks
+      - SERVER_SSL_TRUST-STORE=file:/certs/client-app.jks
+    volumes:
+      - "/Users/dan/git/nackademin/labs/lab4-facit/src/main/resources:/certs"
+    ports:
+      - "8080:8080"
+    links:
+      - mysql
+  riskService:
+    image: daneidmark/risk:0.0.2
+    environment:
+      - SERVER_SSL_KEY-STORE=file:/certs/server-app.jks
+      - SERVER_SSL_TRUST-STORE=file:/certs/server-app.jks
+    ports:
+      - "8081:8081"
+    volumes:
+      - "/Users/dan/git/github/lab3-risk-service/src/main/resources:/certs"
+  userService:
+    image: daneidmark/user:0.0.1
+    ports:
+      - "8082:8082"

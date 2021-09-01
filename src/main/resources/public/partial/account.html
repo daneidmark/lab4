@@ -1,0 +1,75 @@
+
+<!--
+<p th:text="'UserID:' + ${userId} + '!'" />
+<p th:text="'AccountID:' + ${accountId} + '!'" />
+<p th:text="'Balance:' + ${balance} + '!'" />
+
+<form action="#" th:action="@{/bank/{user}/account/{id}/deposit(user=${userId}, id=${accountId})}" th:object="${deposit}" method="post">
+    <p>Deposit: <input type="text" th:field="*{amount}" /></p>
+    <p><input type="submit" value="Submit" /> <input type="reset" value="Reset" /></p>
+</form>
+
+<form action="#" th:action="@{/bank/{user}/account/{id}/withdraw(user=${userId}, id=${accountId})}"  th:object="${withdraw}" method="post">
+    <p>Withdraw: <input type="text" th:field="*{amount}" /></p>
+    <p><input type="submit" value="Submit" /> <input type="reset" value="Reset" /></p>
+</form>
+-->
+
+<div>
+    <p>accountId:</p>
+    <p id="accountId" />
+    <p>userID:</p>
+    <p id="userId" />
+    <p>balance:</p>
+    <p id="balance" />
+
+    <p>Deposit: <input id="deposit" type="text"/></p>
+    <button class="btn" onclick="deposit()">Deposit</button>
+
+    <p>Withdraw: <input id="withdraw" type="text"/></p>
+    <button class="btn" onclick="withdraw()">Deposit</button>
+
+    <script>
+        console.log(token);
+         let accountId = 0;
+         fetch('/account', {
+             headers: {
+                'Authorization': `Bearer ${token}`
+             }
+         }).then(r => r.json()).then(json => {
+            accountId = json.id;
+            $('#accountId').text(json.id);
+            $('#userId').text(json.holder);
+            $('#balance').text(json.balance);
+         })
+
+         const deposit = () => {
+         const body = `{"accountId": "${accountId}", "amount": "${$('#deposit').val()}"}`
+             fetch('/account/deposit', {
+                 headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                 },
+                 method: 'PUT',
+                 body: body
+             }).then(r => r.json()).then(json => {
+                $('#balance').text(json.balance);
+             })
+         }
+
+         const withdraw = () => {
+         const body = `{"accountId": "${accountId}", "amount": "${$('#withdraw').val()}"}`
+             fetch('/account/withdraw', {
+                 headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                 },
+                 method: 'PUT',
+                 body: body
+             }).then(r => r.json()).then(json => {
+                $('#balance').text(json.balance);
+             })
+         }
+
+    </script>
+</div>
